@@ -1,7 +1,11 @@
-# Tauri + Yew
+# Sand Simulation
 
-This template should help get you started developing with Tauri and Yew.
+This is a simple sand simulation using Yew + Tauri.
 
-## Recommended IDE Setup
+![screenshot](./docs/screenshot.gif)
 
-[VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+## How to run
+
+```bash
+cargo tauri dev
+```
