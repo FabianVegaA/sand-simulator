@@ -62,8 +62,12 @@
     background-color: white;
 }
 
-.cellule-alive {
+.cellule-alive.sand {
     background-color: #ebb30a;
+}
+
+.cellule-alive.rock {
+    background-color: #6d7288;
 }
 
 .cellule-mouse-over-alive {

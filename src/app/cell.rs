@@ -6,12 +6,23 @@ pub enum State {
     MouseOut,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Sand,
+    Rock,
+}
+
 #[derive(Clone, Copy)]
 pub struct Cellule {
+    pub kind: Kind,
     pub state: State,
 }
 
 impl Cellule {
+    pub fn update_kind(&mut self, kind: Kind) {
+        self.kind = kind;
+    }
+
     pub fn is_alive(&mut self) -> bool {
         self.state == State::Alive || self.state == State::MouseOver(true)
     }

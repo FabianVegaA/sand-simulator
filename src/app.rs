@@ -1,11 +1,14 @@
 use cell::{Cellule, State};
 use gloo::timers::callback::Interval;
+use gloo_console::log;
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlInputElement;
 use yew::html::Scope;
-use yew::prelude::InputEvent;
+use yew::prelude::{Event, InputEvent};
 use yew::{classes, html, Component, Context};
+
+use self::cell::Kind;
 
 mod cell;
 
@@ -23,6 +26,7 @@ pub struct App {
     active: bool,
     size_cursor: usize,
     creation_mode: CreationMode,
+    kind_cell: Kind,
 }
 
 #[derive(Clone, PartialEq, Copy)]
@@ -45,9 +49,10 @@ pub enum Msg {
     Play,
     Reset,
     Pause,
+    // Configuration
     ChangeSizeCursor(usize),
-    // Creation mode (add or remove cellules)
     ChangeCreationMode(CreationMode),
+    ChangeKindCell(Kind),
 }
 
 impl App {
@@ -66,6 +71,10 @@ impl App {
             State::MouseOver(false) => "cellule-mouse-over-dead",
             State::Dead | State::MouseOut => "cellule-dead",
         };
+        let kind_class = match cellule.kind {
+            Kind::Sand => "sand",
+            Kind::Rock => "rock",
+        };
         let action = match self.creation_mode {
             CreationMode::Add => Msg::AddCellule,
             CreationMode::Remove => Msg::RemoveCellule,
@@ -75,7 +84,7 @@ impl App {
         html! {
             <div
                 key={idx}
-                class={classes!("simulation-cellule", cellule_class)}
+                class={classes!("simulation-cellule", cellule_class, kind_class)}
                 onmousedown={handle_mouse_down}
                 onmouseover={link.callback(move |_| Msg::MouseOver(idx))}
                 onmouseout={link.callback(move |_| Msg::MouseOut(idx))}
@@ -87,16 +96,23 @@ impl App {
     fn step(&mut self) {
         for i in (0..self.cellules_height).rev() {
             for j in 0..self.cellules_width {
-                if let (Some(idx), Some(idx_below)) =
-                    (self.relative_idx(i, j), self.relative_idx(i + 1, j))
-                {
-                    if self.cellules[idx].is_alive() && self.cellules[idx_below].is_dead() {
-                        self.cellules[idx].set_dead();
-                        self.cellules[idx_below].set_alive();
-                    } else if self.cellules[idx].is_alive() && self.cellules[idx_below].is_alive() {
-                        self.slip(i, j, idx);
-                    }
+                let idx = self.relative_idx(i, j).unwrap();
+                let cell = &self.cellules[idx];
+                match cell.kind {
+                    Kind::Sand => self.step_sand(i, j, idx),
+                    Kind::Rock => continue,
                 }
+            }
+        }
+    }
+
+    fn step_sand(&mut self, i: usize, j: usize, idx: usize) {
+        if let Some(idx_below) = self.relative_idx(i + 1, j) {
+            if self.cellules[idx].is_alive() && self.cellules[idx_below].is_dead() {
+                self.cellules[idx].set_dead();
+                self.cellules[idx_below].set_alive();
+            } else if self.cellules[idx].is_alive() && self.cellules[idx_below].is_alive() {
+                self.slip(i, j, idx);
             }
         }
     }
@@ -152,10 +168,15 @@ impl Component for App {
 
     fn create(ctx: &Context<Self>) -> Self {
         let callback = ctx.link().callback(|_| Msg::Tick);
-        let _interval = Interval::new(10, move || callback.emit(()));
-
+        let _interval = Interval::new(100, move || callback.emit(()));
         let (cellules_width, cellules_height) = (100, 50);
-        let cellules = vec![Cellule { state: State::Dead }; cellules_width * cellules_height];
+        let cellules = vec![
+            Cellule {
+                kind: Kind::Sand,
+                state: State::Dead
+            };
+            cellules_width * cellules_height
+        ];
         Self {
             cellules,
             cellules_width,
@@ -164,6 +185,7 @@ impl Component for App {
             active: true,
             size_cursor: 8,
             creation_mode: CreationMode::Add,
+            kind_cell: Kind::Sand,
         }
     }
 
@@ -171,19 +193,25 @@ impl Component for App {
         match msg {
             Msg::ToggleCellule(idx) => {
                 self.cicle_cursor(idx).iter().for_each(|idx| {
-                    self.cellules.get_mut(*idx).unwrap().swap();
+                    let cell = self.cellules.get_mut(*idx).unwrap();
+                    cell.update_kind(self.kind_cell);
+                    cell.swap();
                 });
                 true
             }
             Msg::AddCellule(idx) => {
                 self.cicle_cursor(idx).iter().for_each(|idx| {
-                    self.cellules.get_mut(*idx).unwrap().set_alive();
+                    let cell = self.cellules.get_mut(*idx).unwrap();
+                    cell.update_kind(self.kind_cell);
+                    cell.set_alive();
                 });
                 true
             }
             Msg::RemoveCellule(idx) => {
                 self.cicle_cursor(idx).iter().for_each(|idx| {
-                    self.cellules.get_mut(*idx).unwrap().set_dead();
+                    let cell = self.cellules.get_mut(*idx).unwrap();
+                    cell.update_kind(self.kind_cell);
+                    cell.set_dead();
                 });
                 true
             }
@@ -227,6 +255,10 @@ impl Component for App {
             }
             Msg::ChangeCreationMode(mode) => {
                 self.creation_mode = mode;
+                false
+            }
+            Msg::ChangeKindCell(kind) => {
+                self.kind_cell = kind;
                 false
             }
         }
@@ -283,6 +315,21 @@ impl Component for App {
                                 <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Add))}>{ "Add" }</button>
                                 <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Remove))}>{ "Remove" }</button>
                                 <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Toggle))}>{ "Toggle" }</button>
+
+                                <label for="kind-cell">{ "Kind Cell" }</label>
+                                <select onchange={ctx.link().callback(|e: Event| {
+                                    let select: HtmlInputElement = e.target().unwrap().unchecked_into();
+                                    let kind = match select.value().as_str() {
+                                        "sand" => Kind::Sand,
+                                        "rock" => Kind::Rock,
+                                        _ => Kind::Sand
+                                    };
+                                    log!(select.value().as_str());
+                                    Msg::ChangeKindCell(kind)
+                                })}>
+                                    <option value="sand" selected=true>{ "Sand" }</option>
+                                    <option value="rock">{ "Rock" }</option>
+                                </select>
                             </div>
                         </div>
                     </div>
