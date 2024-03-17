@@ -22,6 +22,14 @@ pub struct App {
     _interval: Interval,
     active: bool,
     size_cursor: usize,
+    creation_mode: CreationMode,
+}
+
+#[derive(Clone, PartialEq, Copy)]
+pub enum CreationMode {
+    Add,
+    Remove,
+    Toggle,
 }
 
 pub enum Msg {
@@ -38,6 +46,8 @@ pub enum Msg {
     Reset,
     Pause,
     ChangeSizeCursor(usize),
+    // Creation mode (add or remove cellules)
+    ChangeCreationMode(CreationMode),
 }
 
 impl App {
@@ -51,19 +61,22 @@ impl App {
 
     fn view_cellule(&self, idx: usize, cellule: &Cellule, link: &Scope<Self>) -> yew::Html {
         let cellule_class = match cellule.state {
-            State::Dead | State::MouseOut => "cellule-dead",
             State::Alive => "cellule-alive",
-            State::MouseOver => "cellule-mouse-over",
+            State::MouseOver(true) => "cellule-mouse-over-alive",
+            State::MouseOver(false) => "cellule-mouse-over-dead",
+            State::Dead | State::MouseOut => "cellule-dead",
         };
+        let action = match self.creation_mode {
+            CreationMode::Add => Msg::AddCellule,
+            CreationMode::Remove => Msg::RemoveCellule,
+            CreationMode::Toggle => Msg::ToggleCellule,
+        };
+        let handle_mouse_down = link.callback(move |_| action(idx));
         html! {
             <div
                 key={idx}
                 class={classes!("simulation-cellule", cellule_class)}
-                onmousedown={link.callback(move |e: yew::MouseEvent| match e.button() {
-                    0 => Msg::AddCellule(idx),
-                    2 => Msg::RemoveCellule(idx),
-                    _ => Msg::ToggleCellule(idx),
-                })}
+                onmousedown={handle_mouse_down}
                 onmouseover={link.callback(move |_| Msg::MouseOver(idx))}
                 onmouseout={link.callback(move |_| Msg::MouseOut(idx))}
             >
@@ -125,9 +138,7 @@ impl App {
                 let i = (idx / self.cellules_width) as i32 + y;
                 let j = (idx % self.cellules_width) as i32 + x;
                 if let Some(idx) = self.relative_idx(i as usize, j as usize) {
-                    if self.cellules[idx].is_dead() {
-                        market_cells.push(idx);
-                    }
+                    market_cells.push(idx);
                 }
             }
         }
@@ -152,6 +163,7 @@ impl Component for App {
             _interval,
             active: true,
             size_cursor: 8,
+            creation_mode: CreationMode::Add,
         }
     }
 
@@ -183,25 +195,24 @@ impl Component for App {
                 false
             }
             Msg::MouseOver(idx) => {
-                self.cicle_cursor(idx).into_iter().for_each(|idx| {
-                    self.cellules.get_mut(idx).unwrap().set_mouse_over();
-                });
-
+                self.cicle_cursor(idx)
+                    .into_iter()
+                    .for_each(|idx| self.cellules.get_mut(idx).unwrap().set_mouse_over());
                 true
             }
             Msg::MouseOut(idx) => {
-                self.cicle_cursor(idx).iter().for_each(|idx| {
-                    self.cellules.get_mut(*idx).unwrap().set_mouse_out();
-                });
+                self.cicle_cursor(idx)
+                    .iter()
+                    .for_each(|idx| self.cellules.get_mut(*idx).unwrap().set_mouse_out());
                 true
             }
             Msg::Pause => {
                 self.active = false;
-                true
+                false
             }
             Msg::Play => {
                 self.active = true;
-                true
+                false
             }
             Msg::Reset => {
                 self.cellules
@@ -212,7 +223,11 @@ impl Component for App {
             }
             Msg::ChangeSizeCursor(size) => {
                 self.size_cursor = size;
-                true
+                false
+            }
+            Msg::ChangeCreationMode(mode) => {
+                self.creation_mode = mode;
+                false
             }
         }
     }
@@ -252,14 +267,23 @@ impl Component for App {
                             <button class="game-button" onclick={ctx.link().callback(|_| Msg::Play)}>{ "Play" }</button>
                             <button class="game-button" onclick={ctx.link().callback(|_| Msg::Pause)}>{ "Pause" }</button>
                             <button class="game-button" onclick={ctx.link().callback(|_| Msg::Reset)}>{ "Reset" }</button>
-                            <input
-                                type="range"
-                                min="1"
-                                max="20"
-                                step="1"
-                                value={self.size_cursor.to_string()}
-                                oninput={handle_change_size_cursor}
-                            />
+
+                            <div class="game-button">
+                                <label for="size-cursor">{ "Size cursor" }</label>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    step="1"
+                                    value={self.size_cursor.to_string()}
+                                    oninput={handle_change_size_cursor}
+                                />
+
+                                <label for="CrafteMode">{ "Creation Mode" }</label>
+                                <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Add))}>{ "Add" }</button>
+                                <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Remove))}>{ "Remove" }</button>
+                                <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Toggle))}>{ "Toggle" }</button>
+                            </div>
                         </div>
                     </div>
                 </section>

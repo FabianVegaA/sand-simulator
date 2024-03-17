@@ -66,8 +66,12 @@
     background-color: #ebb30a;
 }
 
-.cellule-mouse-over {
-    background-color: aqua;
+.cellule-mouse-over-alive {
+    background-color: #9d7707;
+}
+
+.cellule-mouse-over-dead {
+    background-color: #a3d3a1;
 }
 
 .simulation-header {
