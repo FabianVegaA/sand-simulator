@@ -1,6 +1,7 @@
 use cell::{Cellule, State};
 use gloo::timers::callback::Interval;
 use gloo_console::log;
+use js_sys::Math::sqrt;
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlInputElement;
@@ -22,11 +23,13 @@ pub struct App {
     cellules: Vec<Cellule>,
     cellules_width: usize,
     cellules_height: usize,
+    pressure_max: u8,
     _interval: Interval,
     active: bool,
     size_cursor: usize,
     creation_mode: CreationMode,
     kind_cell: Kind,
+    seed: rand::rngs::ThreadRng,
 }
 
 #[derive(Clone, PartialEq, Copy)]
@@ -64,6 +67,12 @@ impl App {
         }
     }
 
+    fn coordinates(&self, idx: usize) -> (usize, usize) {
+        let i = idx / self.cellules_width;
+        let j = idx % self.cellules_width;
+        (i, j)
+    }
+
     fn view_cellule(&self, idx: usize, cellule: &Cellule, link: &Scope<Self>) -> yew::Html {
         let cellule_class = match cellule.state {
             State::Alive => "cellule-alive",
@@ -72,20 +81,28 @@ impl App {
             State::Dead | State::MouseOut => "cellule-dead",
         };
         let kind_class = match cellule.kind {
-            Kind::Sand => "sand",
-            Kind::Rock => "rock",
+            Some(Kind::Sand) => "sand",
+            Some(Kind::Rock) => "rock",
+            _ => "air",
         };
         let action = match self.creation_mode {
             CreationMode::Add => Msg::AddCellule,
             CreationMode::Remove => Msg::RemoveCellule,
             CreationMode::Toggle => Msg::ToggleCellule,
         };
-        let handle_mouse_down = link.callback(move |_| action(idx));
+
+        let style = {
+            // TODO: use a better formula to calculate brightness
+            let brightness = 100.0 - (cellule.pressure as f32 / self.pressure_max as f32) * 100.0;
+            format!("filter: brightness({}%)", brightness.max(20.0).min(100.0))
+        };
+        let has_pressure = cellule.pressure > 0;
         html! {
             <div
                 key={idx}
                 class={classes!("simulation-cellule", cellule_class, kind_class)}
-                onmousedown={handle_mouse_down}
+                style={if has_pressure { style } else { "".to_string() }}
+                onmousedown={link.callback(move |_| action(idx))}
                 onmouseover={link.callback(move |_| Msg::MouseOver(idx))}
                 onmouseout={link.callback(move |_| Msg::MouseOut(idx))}
             >
@@ -97,10 +114,10 @@ impl App {
         for i in (0..self.cellules_height).rev() {
             for j in 0..self.cellules_width {
                 let idx = self.relative_idx(i, j).unwrap();
-                let cell = &self.cellules[idx];
-                match cell.kind {
-                    Kind::Sand => self.step_sand(i, j, idx),
-                    Kind::Rock => continue,
+                let kind = self.cellules[idx].kind;
+                match kind {
+                    Some(Kind::Sand) => self.step_sand(i, j, idx),
+                    _ => continue,
                 }
             }
         }
@@ -109,40 +126,67 @@ impl App {
     fn step_sand(&mut self, i: usize, j: usize, idx: usize) {
         if let Some(idx_below) = self.relative_idx(i + 1, j) {
             if self.cellules[idx].is_alive() && self.cellules[idx_below].is_dead() {
-                self.cellules[idx].set_dead();
-                self.cellules[idx_below].set_alive();
+                self.move_cell(idx, idx_below);
             } else if self.cellules[idx].is_alive() && self.cellules[idx_below].is_alive() {
-                self.slip(i, j, idx);
+                self.move_cell_with_slip(i, j, idx, 3);
             }
         }
+        self.cellules[idx].pressure = self.pressure(i, j);
     }
 
-    fn slip(&mut self, i: usize, j: usize, idx: usize) {
-        let mut rng = rand::thread_rng();
-        let slips = (-5..=5).collect::<Vec<i32>>();
-        let slip: &i32 = slips.choose(&mut rng).unwrap();
+    fn move_cell_with_slip(&mut self, i: usize, j: usize, idx: usize, slippage: i32) {
+        let slip_coefficient: i32 = *(-slippage..=slippage)
+            .collect::<Vec<i32>>()
+            .choose(&mut self.seed)
+            .unwrap();
 
-        let has_obstacle = {
-            if *slip > 0 {
-                *slip..0
-            } else if *slip < 0 {
-                0..*slip
+        let slipped_idx: usize = {
+            if slip_coefficient < 0 {
+                slip_coefficient..0
+            } else if slip_coefficient > 0 {
+                0..slip_coefficient
             } else {
                 0..1
             }
         }
-        .any(|k| {
-            self.relative_idx(i, (j as i32 + k) as usize)
-                .and_then(|slipped_idx| Some(self.cellules[slipped_idx].is_dead()))
-                .unwrap_or(false)
+        .fold(idx, |slipped_idx, slip| {
+            self.relative_idx(i + 1, (j as i32 + slip) as usize)
+                .and_then(|_idx| {
+                    if self.cellules[_idx].is_dead() {
+                        Some(_idx)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(slipped_idx)
         });
 
-        if let Some(slipped_idx) = self.relative_idx(i + 1, (j as i32 + slip) as usize) {
-            if !has_obstacle && self.cellules[slipped_idx].is_dead() {
-                self.cellules[idx].set_dead();
-                self.cellules[slipped_idx].set_alive();
-            }
-        }
+        self.move_cell(idx, slipped_idx);
+    }
+
+    fn move_cell(&mut self, origin_idx: usize, target_idx: usize) {
+        let kind = self.cellules[origin_idx].kind.unwrap().clone();
+        let (i, j) = self.coordinates(target_idx);
+        let target_pressure = self.pressure(i, j);
+        self.cellules[origin_idx].set_dead();
+        self.cellules[target_idx]
+            .set_kind(kind)
+            .set_pressure(target_pressure)
+            .set_alive()
+    }
+
+    fn pressure(&mut self, i: usize, j: usize) -> u8 {
+        // TODO: Implement pressure calculation for more directions
+        let above = (0..=i)
+            .rev()
+            .take_while(|k| {
+                self.relative_idx(*k, j)
+                    .map(|_idx| self.cellules[_idx].is_alive())
+                    .unwrap_or(false)
+            })
+            .count();
+
+        above as u8
     }
 
     fn cicle_cursor(&mut self, idx: usize) -> Vec<usize> {
@@ -170,18 +214,24 @@ impl Component for App {
         let callback = ctx.link().callback(|_| Msg::Tick);
         let _interval = Interval::new(100, move || callback.emit(()));
         let (cellules_width, cellules_height) = (100, 50);
+        let rng = rand::thread_rng();
         let cellules = vec![
             Cellule {
-                kind: Kind::Sand,
-                state: State::Dead
+                kind: Some(Kind::Sand),
+                state: State::Dead,
+                pressure: 0,
             };
             cellules_width * cellules_height
         ];
+        let pressure_max = (cellules_width - 1) + (cellules_height - 1);
+
         Self {
             cellules,
             cellules_width,
             cellules_height,
             _interval,
+            pressure_max: pressure_max as u8,
+            seed: rng,
             active: true,
             size_cursor: 8,
             creation_mode: CreationMode::Add,
@@ -193,25 +243,27 @@ impl Component for App {
         match msg {
             Msg::ToggleCellule(idx) => {
                 self.cicle_cursor(idx).iter().for_each(|idx| {
-                    let cell = self.cellules.get_mut(*idx).unwrap();
-                    cell.update_kind(self.kind_cell);
-                    cell.swap();
+                    self.cellules
+                        .get_mut(*idx)
+                        .unwrap()
+                        .set_kind(self.kind_cell)
+                        .swap();
                 });
                 true
             }
             Msg::AddCellule(idx) => {
                 self.cicle_cursor(idx).iter().for_each(|idx| {
-                    let cell = self.cellules.get_mut(*idx).unwrap();
-                    cell.update_kind(self.kind_cell);
-                    cell.set_alive();
+                    self.cellules
+                        .get_mut(*idx)
+                        .unwrap()
+                        .set_kind(self.kind_cell)
+                        .set_alive();
                 });
                 true
             }
             Msg::RemoveCellule(idx) => {
                 self.cicle_cursor(idx).iter().for_each(|idx| {
-                    let cell = self.cellules.get_mut(*idx).unwrap();
-                    cell.update_kind(self.kind_cell);
-                    cell.set_dead();
+                    self.cellules.get_mut(*idx).unwrap().set_dead();
                 });
                 true
             }

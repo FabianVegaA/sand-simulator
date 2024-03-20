@@ -6,7 +6,7 @@ pub enum State {
     MouseOut,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
     Sand,
     Rock,
@@ -14,13 +14,20 @@ pub enum Kind {
 
 #[derive(Clone, Copy)]
 pub struct Cellule {
-    pub kind: Kind,
+    pub kind: Option<Kind>,
     pub state: State,
+    pub pressure: u8,
 }
 
 impl Cellule {
-    pub fn update_kind(&mut self, kind: Kind) {
-        self.kind = kind;
+    pub fn set_kind(&mut self, kind: Kind) -> &mut Self {
+        self.kind = Some(kind);
+        self
+    }
+
+    pub fn set_pressure(&mut self, pressure: u8) -> &mut Self {
+        self.pressure = pressure;
+        self
     }
 
     pub fn is_alive(&mut self) -> bool {
@@ -45,6 +52,8 @@ impl Cellule {
 
     pub fn set_dead(&mut self) {
         self.state = State::Dead;
+        self.kind = None;
+        self.pressure = 0;
     }
 
     pub fn set_mouse_over(&mut self) {
