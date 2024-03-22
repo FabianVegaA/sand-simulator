@@ -141,26 +141,33 @@ impl App {
             .unwrap();
 
         let slipped_idx: usize = {
-            if slip_coefficient < 0 {
-                slip_coefficient..0
-            } else if slip_coefficient > 0 {
-                0..slip_coefficient
+            if slip_coefficient <= 0 {
+                slip_coefficient..=0
             } else {
-                0..1
+                0..=slip_coefficient
             }
         }
         .fold(idx, |slipped_idx, slip| {
-            self.relative_idx(i + 1, (j as i32 + slip) as usize)
+            self.relative_idx(i, (j as i32 + slip) as usize)
                 .and_then(|_idx| {
-                    if self.cellules[_idx].is_dead() {
-                        Some(_idx)
-                    } else {
-                        None
-                    }
+                    self.cellules
+                        .get_mut(_idx)
+                        .map(Cellule::is_dead)
+                        .unwrap_or(false)
+                        .then_some(
+                            self.relative_idx(i + 1, (j as i32 + slip) as usize)
+                                .and_then(|_idx_below| {
+                                    self.cellules
+                                        .get_mut(_idx_below)
+                                        .map(Cellule::is_dead)
+                                        .unwrap_or(false)
+                                        .then_some(_idx)
+                                }),
+                        )
+                        .flatten()
                 })
                 .unwrap_or(slipped_idx)
         });
-
         self.move_cell(idx, slipped_idx);
     }
 
@@ -212,7 +219,7 @@ impl Component for App {
 
     fn create(ctx: &Context<Self>) -> Self {
         let callback = ctx.link().callback(|_| Msg::Tick);
-        let _interval = Interval::new(100, move || callback.emit(()));
+        let _interval = Interval::new(50, move || callback.emit(()));
         let (cellules_width, cellules_height) = (100, 50);
         let rng = rand::thread_rng();
         let cellules = vec![
