@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
@@ -30,6 +30,14 @@ jobs:
 
       - name: Install trunk
         run: cargo install trunk
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+
+      - name: Install mccli to enable SSH with OIDC authentication
+        run: |
+          apt-get install oidc-agent
+          pip install mccli
 
       - name: Build the project
         run: trunk build --release
@@ -46,11 +54,5 @@ jobs:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
         run: |
-          if [ -z "$PRIVATE_KEY" ]; then
-            echo "The private key is not set"
-            exit 1
-          fi
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          rsync -avzr -vvv --delete --exclude '.git/' --exclude '.github/' -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" ./dist/ $USER@$HOST:~/dist
+          rsync -avzr -vvv --delete --exclude '.git/' --exclude '.github/' -e "mccli ssh -o StrictHostKeyChecking=no --oidc" ./dist/ $USER@$HOST:~/dist
           rm -f private_key.pem
