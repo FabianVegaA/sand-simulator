@@ -48,5 +48,5 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
-          rsync -avzr -vv --delete --exclude '.git/' --exclude '.github/' -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" ./dist/ $USER@$HOST:~/dist
+          rsync -avzr -vvv --delete --exclude '.git/' --exclude '.github/' -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" ./dist/ $USER@$HOST:~/dist
           rm -f private_key.pem
