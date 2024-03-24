@@ -7,6 +7,9 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write # This is required for requesting the JWT
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -15,13 +18,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Rust 
+      - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           profile: minimal
           override: true
-      
+
       - name: Install WebAssembly target
         run: rustup target add wasm32-unknown-unknown
 
@@ -32,10 +35,9 @@ jobs:
         run: trunk build --release
 
       - name: Config AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::471112525273:role/github-oidc
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy to EC2
