@@ -35,9 +35,7 @@ jobs:
         uses: actions/setup-python@v5
 
       - name: Install mccli to enable SSH with OIDC authentication
-        run: |
-          apt-get install oidc-agent
-          pip install mccli
+        run: pip install mccli
 
       - name: Build the project
         run: trunk build --release
