@@ -46,6 +46,10 @@ jobs:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
         run: |
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo "The private key is not set"
+            exit 1
+          fi
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
           rsync -avzr -vvv --delete --exclude '.git/' --exclude '.github/' -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" ./dist/ $USER@$HOST:~/dist
