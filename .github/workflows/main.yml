@@ -39,7 +39,7 @@ jobs:
           REMOTE_USER: ${{ secrets.EC2_USER }}
           SOURCE: ./dist
           TARGET: /home/${{ secrets.EC2_USER }}/dist
-          SCRIPT_BEFORE: sudo mkdir dist
+          SCRIPT_BEFORE: sudo mkdir -p /home/${{ secrets.EC2_USER }}/dist
 
       - name: Executing remote ssh commands using ssh key
         uses: appleboy/ssh-action@master
@@ -49,6 +49,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             sudo rsync -av --delete /home/${{ secrets.EC2_USER }}/dist/* ${{ secrets.ROOT_DIR }}
+            sudo rm -rf /home/${{ secrets.EC2_USER }}/dist
 
             sudo nginx -t
             sudo systemctl restart nginx
