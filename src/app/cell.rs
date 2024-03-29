@@ -38,14 +38,6 @@ impl Cellule {
         !self.is_alive()
     }
 
-    pub fn swap(&mut self) {
-        if self.is_alive() {
-            self.set_dead();
-        } else {
-            self.set_alive();
-        }
-    }
-
     pub fn set_alive(&mut self) {
         self.state = State::Alive;
     }

@@ -1,43 +1,154 @@
-@media (prefers-color-scheme: dark) {
-    :root {
-        color: #f6f6f6;
-        background-color: #2f2f2f;
-    }
+:root {
+    color: #f6f6f6;
+    background-color: #2f2f2f;
+    font-family: "Roboto", sans-serif;
+}
 
-    a:hover {
-        color: #24c8db;
-    }
+a:hover {
+    color: #24c8db;
+}
 
-    input,
-    button {
-        color: #ffffff;
-        background-color: #0f0f0f98;
-    }
-    button:active {
-        background-color: #0f0f0f69;
-    }
+input,
+button {
+    color: #fff;
+    background-color: #4caf50;
+
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    box-shadow:
+        0 4px 8px 0 rgba(0, 0, 0, 0.2),
+        0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    transition: 0.3s ease-in-out;
+}
+
+button:hover {
+    box-shadow:
+        0 7px 14px 0 rgba(0, 0, 0, 0.2),
+        0 10px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+button:active {
+    box-shadow:
+        0 2px 5px 0 rgba(0, 0, 0, 0.2),
+        0 4px 6px 0 rgba(0, 0, 0, 0.19);
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 5px;
+    outline: none;
+    border-radius: 5px;
+
+    cursor: pointer;
+    transition: 0.3s ease-in-out;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background-color: #fff;
+    border-radius: 50%;
+    transition: 0.3s ease-in-out;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    background-color: #e6e6e6;
+}
+
+.kind-cell {
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #e6e6e6;
+    color: #333;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px 5px 20px;
+    cursor: pointer;
+    transition: 0.3s ease-in-out;
+}
+
+.kind-cell:hover {
+    background-color: #ddd;
+}
+
+.kind-cell::after {
+    content: "\25BC";
+    font-size: 12px;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #333;
+    transition: 0.3s ease-in-out;
+}
+
+.kind-cell:hover::after {
+    transform: translateY(-50%) rotate(180deg);
 }
 
 .simulation-container {
-    background: #000000;
-    margin: 20px 0 0px 0;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-}
-
-.simulation-content {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: auto;
+    border: 1px solid #444;
+    margin: 0 auto;
+    width: fit-content;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "header"
+        "simulation-content";
 }
 
 .simulation-area {
-    width: 94%;
-    margin: 20px auto;
+    grid-area: simulation-area;
+    margin-left: 10%;
+}
+
+.simulation-header {
+    grid-area: header;
+    align-items: center;
+    place-self: center;
+    color: #fff;
+}
+
+.control-area {
+    padding-left: 20%;
+
+    grid-area: control-area;
+    display: grid;
+    grid-template-rows: auto;
+    gap: 10px;
+    max-width: 200px;
+}
+
+.control-buttons {
+    margin-bottom: 10px;
+}
+
+.play-control {
+    grid-area: play-control;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.crafte-mode {
+    display: flex;
+    justify-content: start;
+    gap: 10px;
+    align-items: self-start;
+}
+
+.crafte-mode-buttom {
+    height: 30px;
+    weight: fit-content;
+    border-radius: 5px;
 }
 
 .simulation-grid {
@@ -55,7 +166,6 @@
     display: inline-block;
     width: 8px;
     height: 8px;
-    border: 1px solid #ccc;
 }
 
 .cellule-dead {
@@ -78,16 +188,49 @@
     background-color: #a3d3a1;
 }
 
-.simulation-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
+@media (max-width: 768px) {
+    .simulation-container {
+        min-height: 110vh;
+    }
+
+    .simulation-content {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "simulation-area"
+            "control-area";
+    }
+
+    .control-area {
+        width: 100%;
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "play-control"
+            "controler-editor";
+    }
+
+    .simulation-area {
+        margin-left: 5vh;
+    }
 }
 
-.game-buttons {
-    width: 100%;
-    display: flex;
-    flex-flow: column wrap;
-    justify-content: center;
+@media (min-width: 768px) {
+    .simulation-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "simulation-area control-area"
+            "simulation-area .";
+    }
+
+    .control-area {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "play-control"
+            "controler-editor";
+
+        label {
+            display: block;
+        }
+    }
 }

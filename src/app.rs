@@ -1,7 +1,6 @@
 use cell::{Cellule, State};
 use gloo::timers::callback::Interval;
 use gloo_console::log;
-use js_sys::Math::sqrt;
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlInputElement;
@@ -36,13 +35,11 @@ pub struct App {
 pub enum CreationMode {
     Add,
     Remove,
-    Toggle,
 }
 
 pub enum Msg {
     Tick,
     // Cellule change state
-    ToggleCellule(usize),
     AddCellule(usize),
     RemoveCellule(usize),
     // Mouse events
@@ -88,7 +85,6 @@ impl App {
         let action = match self.creation_mode {
             CreationMode::Add => Msg::AddCellule,
             CreationMode::Remove => Msg::RemoveCellule,
-            CreationMode::Toggle => Msg::ToggleCellule,
         };
 
         let style = {
@@ -220,7 +216,7 @@ impl Component for App {
     fn create(ctx: &Context<Self>) -> Self {
         let callback = ctx.link().callback(|_| Msg::Tick);
         let _interval = Interval::new(50, move || callback.emit(()));
-        let (cellules_width, cellules_height) = (100, 50);
+        let (cellules_width, cellules_height) = (80, 50);
         let rng = rand::thread_rng();
         let cellules = vec![
             Cellule {
@@ -248,16 +244,6 @@ impl Component for App {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::ToggleCellule(idx) => {
-                self.cicle_cursor(idx).iter().for_each(|idx| {
-                    self.cellules
-                        .get_mut(*idx)
-                        .unwrap()
-                        .set_kind(self.kind_cell)
-                        .swap();
-                });
-                true
-            }
             Msg::AddCellule(idx) => {
                 self.cicle_cursor(idx).iter().for_each(|idx| {
                     self.cellules
@@ -345,55 +331,56 @@ impl Component for App {
             });
 
         html! {
-            <>
-                <section class={"simulation-container"}>
-                    <header class={"simulation-header"}>
-                        <h1 class={"simulation-title"}>{ "Sand Simulation" }</h1>
-                    </header>
-                    <div class={"simulation-content"}>
-                        <section class={"simulation-area"}>
-                            <div class={"simulation-grid"}>{for cell_rows}</div>
-                        </section>
-                        <div class="game-buttons">
+            <section class={"simulation-container"}>
+                <header class={"simulation-header"}>
+                    <h1 class={"simulation-title"}>{ "Sand Simulation" }</h1>
+                </header>
+                <div class={"simulation-content"}>
+                    <section class={"simulation-area"}>
+                        <div class={"simulation-grid"}>{for cell_rows}</div>
+                    </section>
+                    <div class="control-area">
+                        <div class="play-control control-buttons">
                             <button class="game-button" onclick={ctx.link().callback(|_| Msg::Play)}>{ "Play" }</button>
                             <button class="game-button" onclick={ctx.link().callback(|_| Msg::Pause)}>{ "Pause" }</button>
                             <button class="game-button" onclick={ctx.link().callback(|_| Msg::Reset)}>{ "Reset" }</button>
-
-                            <div class="game-button">
-                                <label for="size-cursor">{ "Size cursor" }</label>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="20"
-                                    step="1"
-                                    value={self.size_cursor.to_string()}
-                                    oninput={handle_change_size_cursor}
-                                />
-
-                                <label for="CrafteMode">{ "Creation Mode" }</label>
-                                <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Add))}>{ "Add" }</button>
-                                <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Remove))}>{ "Remove" }</button>
-                                <button onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Toggle))}>{ "Toggle" }</button>
-
-                                <label for="kind-cell">{ "Kind Cell" }</label>
-                                <select onchange={ctx.link().callback(|e: Event| {
-                                    let select: HtmlInputElement = e.target().unwrap().unchecked_into();
-                                    let kind = match select.value().as_str() {
-                                        "sand" => Kind::Sand,
-                                        "rock" => Kind::Rock,
-                                        _ => Kind::Sand
-                                    };
-                                    log!(select.value().as_str());
-                                    Msg::ChangeKindCell(kind)
-                                })}>
-                                    <option value="sand" selected=true>{ "Sand" }</option>
-                                    <option value="rock">{ "Rock" }</option>
-                                </select>
-                            </div>
                         </div>
+
+                        <label for="size-cursor">{ "Size cursor" }</label>
+                        <input
+                            type="range"
+                            id="size-cursor"
+                            class="control-buttons"
+                            min="1"
+                            max="20"
+                            step="1"
+                            value={self.size_cursor.to_string()}
+                            oninput={handle_change_size_cursor}
+                        />
+
+                        <label for="crafte-mode">{ "Creation Mode" }</label>
+                        <div class="crafte-mode control-buttons">
+                            <button class="crafte-mode-buttom" onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Add))}>{ "Add" }</button>
+                            <button class="crafte-mode-buttom" onclick={ctx.link().callback(|_| Msg::ChangeCreationMode(CreationMode::Remove))}>{ "Remove" }</button>
+                        </div>
+
+                        <label for="kind-cell">{ "Kind Cell" }</label>
+                        <select class="control-buttons kind-cell" onchange={ctx.link().callback(|e: Event| {
+                            let select: HtmlInputElement = e.target().unwrap().unchecked_into();
+                            let kind = match select.value().as_str() {
+                                "sand" => Kind::Sand,
+                                "rock" => Kind::Rock,
+                                _ => Kind::Sand
+                            };
+                            log!(select.value().as_str());
+                            Msg::ChangeKindCell(kind)
+                        })}>
+                            <option value="sand" selected=true>{ "Sand" }</option>
+                            <option value="rock">{ "Rock" }</option>
+                        </select>
                     </div>
-                </section>
-            </>
+                </div>
+            </section>
         }
     }
 }
