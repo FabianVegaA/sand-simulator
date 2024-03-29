@@ -38,7 +38,7 @@ jobs:
           REMOTE_HOST: ${{ secrets.EC2_HOST }}
           REMOTE_USER: ${{ secrets.EC2_USER }}
           SOURCE: ./dist
-          TARGET: /home/${{ secrets.EC2_USER }}/dist
+          TARGET: /home/${{ secrets.EC2_USER }}
           SCRIPT_BEFORE: sudo mkdir -p /home/${{ secrets.EC2_USER }}/dist
 
       - name: Executing remote ssh commands using ssh key
