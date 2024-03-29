@@ -40,9 +40,9 @@ jobs:
           SOURCE: ./dist
           TARGET: /home/${{ secrets.EC2_USER }}
           SCRIPT_BEFORE: |
-            temp-dist="/home/${{ secrets.EC2_USER }}/dist"
-            sudo mkdir -p $temp-dist
-            sudo chmod 771 $temp-dist
+            temp_dist="/home/${{ secrets.EC2_USER }}/dist"
+            sudo mkdir -p $temp_dist
+            sudo chmod 771 $temp_dist
 
       - name: Executing remote ssh commands using ssh key
         uses: appleboy/ssh-action@master
