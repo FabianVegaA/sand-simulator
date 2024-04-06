@@ -1,6 +1,5 @@
 use cell::{Cellule, State};
 use gloo::timers::callback::Interval;
-use gloo_console::log;
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlInputElement;
@@ -124,7 +123,7 @@ impl App {
             if self.cellules[idx].is_alive() && self.cellules[idx_below].is_dead() {
                 self.move_cell(idx, idx_below);
             } else if self.cellules[idx].is_alive() && self.cellules[idx_below].is_alive() {
-                self.move_cell_with_slip(i, j, idx, 3);
+                self.move_cell_with_slip(i, j, idx, 2);
             }
         }
         self.cellules[idx].pressure = self.pressure(i, j);
@@ -136,35 +135,41 @@ impl App {
             .choose(&mut self.seed)
             .unwrap();
 
-        let slipped_idx: usize = {
-            if slip_coefficient <= 0 {
-                slip_coefficient..=0
-            } else {
-                0..=slip_coefficient
-            }
-        }
-        .fold(idx, |slipped_idx, slip| {
-            self.relative_idx(i, (j as i32 + slip) as usize)
-                .and_then(|_idx| {
+        let slip_range: Vec<i32> = if slip_coefficient <= 0 {
+            (slip_coefficient..=-1).rev().collect()
+        } else {
+            (1..=slip_coefficient).collect()
+        };
+
+        let slipped_idx = slip_range
+            .into_iter()
+            .map(|slip| {
+                let horizontal_slip = (j.clone() as i32 + slip) as usize;
+                self.relative_idx(i, horizontal_slip).and_then(|idx_next| {
                     self.cellules
-                        .get_mut(_idx)
+                        .get_mut(idx_next)
                         .map(Cellule::is_dead)
-                        .unwrap_or(false)
-                        .then_some(
-                            self.relative_idx(i + 1, (j as i32 + slip) as usize)
-                                .and_then(|_idx_below| {
+                        .and_then(|is_dead_next| {
+                            self.relative_idx(i + 1, horizontal_slip)
+                                .and_then(|idx_below| {
                                     self.cellules
-                                        .get_mut(_idx_below)
+                                        .get_mut(idx_below)
                                         .map(Cellule::is_dead)
-                                        .unwrap_or(false)
-                                        .then_some(_idx)
-                                }),
-                        )
-                        .flatten()
+                                        .and_then(|is_dead_next_below| {
+                                            (is_dead_next && is_dead_next_below)
+                                                .then_some(idx_below)
+                                        })
+                                })
+                        })
                 })
-                .unwrap_or(slipped_idx)
-        });
-        self.move_cell(idx, slipped_idx);
+            })
+            .take_while(Option::is_some)
+            .last()
+            .flatten();
+
+        if let Some(_slipped_idx) = slipped_idx {
+            self.move_cell(idx, _slipped_idx as usize);
+        }
     }
 
     fn move_cell(&mut self, origin_idx: usize, target_idx: usize) {
@@ -372,7 +377,6 @@ impl Component for App {
                                 "rock" => Kind::Rock,
                                 _ => Kind::Sand
                             };
-                            log!(select.value().as_str());
                             Msg::ChangeKindCell(kind)
                         })}>
                             <option value="sand" selected=true>{ "Sand" }</option>
