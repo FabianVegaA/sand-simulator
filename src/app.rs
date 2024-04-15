@@ -21,7 +21,6 @@ pub struct App {
     cellules: Vec<Cellule>,
     cellules_width: usize,
     cellules_height: usize,
-    pressure_max: u8,
     _interval: Interval,
     active: bool,
     size_cursor: usize,
@@ -56,17 +55,7 @@ pub enum Msg {
 
 impl App {
     fn relative_idx(&self, i: usize, j: usize) -> Option<usize> {
-        if i < self.cellules_height && j < self.cellules_width {
-            Some(i * self.cellules_width + j)
-        } else {
-            None
-        }
-    }
-
-    fn coordinates(&self, idx: usize) -> (usize, usize) {
-        let i = idx / self.cellules_width;
-        let j = idx % self.cellules_width;
-        (i, j)
+        (i < self.cellules_height && j < self.cellules_width).then(|| i * self.cellules_width + j)
     }
 
     fn view_cellule(&self, idx: usize, cellule: &Cellule, link: &Scope<Self>) -> yew::Html {
@@ -86,17 +75,19 @@ impl App {
             CreationMode::Remove => Msg::RemoveCellule,
         };
 
-        let style = {
+        let style = if cellule.pressure == 0 {
+            "border-radius: 20% 20% 0 0".to_string()
+        } else {
             // TODO: use a better formula to calculate brightness
-            let brightness = 100.0 - (cellule.pressure as f32 / self.pressure_max as f32) * 100.0;
-            format!("filter: brightness({}%)", brightness.max(20.0).min(100.0))
+            let brightness = 100.0 - (cellule.pressure as f32) * 1.2;
+            format!("filter: brightness({}%)", brightness.max(0.0).min(100.0))
         };
-        let has_pressure = cellule.pressure > 0;
+
         html! {
             <div
                 key={idx}
                 class={classes!("simulation-cellule", cellule_class, kind_class)}
-                style={if has_pressure { style } else { "".to_string() }}
+                style={style}
                 onmousedown={link.callback(move |_| action(idx))}
                 onmouseover={link.callback(move |_| Msg::MouseOver(idx))}
                 onmouseout={link.callback(move |_| Msg::MouseOut(idx))}
@@ -119,6 +110,8 @@ impl App {
     }
 
     fn step_sand(&mut self, i: usize, j: usize, idx: usize) {
+        let target_pressure = self.pressure(i, j);
+        self.cellules[idx].set_pressure(target_pressure);
         if let Some(idx_below) = self.relative_idx(i + 1, j) {
             if self.cellules[idx].is_alive() && self.cellules[idx_below].is_dead() {
                 self.move_cell(idx, idx_below);
@@ -126,7 +119,6 @@ impl App {
                 self.move_cell_with_slip(i, j, idx, 2);
             }
         }
-        self.cellules[idx].pressure = self.pressure(i, j);
     }
 
     fn move_cell_with_slip(&mut self, i: usize, j: usize, idx: usize, slippage: i32) {
@@ -174,13 +166,9 @@ impl App {
 
     fn move_cell(&mut self, origin_idx: usize, target_idx: usize) {
         let kind = self.cellules[origin_idx].kind.unwrap().clone();
-        let (i, j) = self.coordinates(target_idx);
-        let target_pressure = self.pressure(i, j);
+
         self.cellules[origin_idx].set_dead();
-        self.cellules[target_idx]
-            .set_kind(kind)
-            .set_pressure(target_pressure)
-            .set_alive()
+        self.cellules[target_idx].set_kind(kind).set_alive()
     }
 
     fn pressure(&mut self, i: usize, j: usize) -> u8 {
@@ -231,14 +219,12 @@ impl Component for App {
             };
             cellules_width * cellules_height
         ];
-        let pressure_max = (cellules_width - 1) + (cellules_height - 1);
 
         Self {
             cellules,
             cellules_width,
             cellules_height,
             _interval,
-            pressure_max: pressure_max as u8,
             seed: rng,
             active: true,
             size_cursor: 8,
