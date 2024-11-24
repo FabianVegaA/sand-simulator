@@ -1,0 +1,15 @@
+<!DOCTYPE html><html><head>
+        <meta charset="utf-8">
+        <title>Tauri + Yew App</title>
+        <link rel="stylesheet" href="/styles-1bbc39b0359f015e.css" integrity="sha384-cNux0GynPmwC20G3Q21DnhLoR5Nwnf9ByP5uJwQCVAuFCZl60y5IafsPOLFnrlZN">
+    
+<link rel="preload" href="/sand-ui-5d826e059bc39c93_bg.wasm" as="fetch" type="application/wasm" crossorigin="anonymous" integrity="sha384-vbWA-emHwNp2XgBirVgjzPCYzkiK30vgIM1bRHfvujT8xMs6auEYSIFW8jEgCSBH">
+<link rel="modulepreload" href="/sand-ui-5d826e059bc39c93.js" crossorigin="anonymous" integrity="sha384-X0sP7fKnuy8EwdVB6av9QM_j4f1Y9Fqj6Xcm4a5YmErZoUM_VSzh-oYTmzi1-zQv"></head>
+<body>
+
+<script type="module">
+import init, * as bindings from '/sand-ui-5d826e059bc39c93.js';
+init('/sand-ui-5d826e059bc39c93_bg.wasm');
+window.wasmBindings = bindings;
+
+</script></body></html>
