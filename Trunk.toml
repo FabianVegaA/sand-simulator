@@ -1,5 +1,6 @@
 [build]
 target = "./index.html"
+inject_scripts = true
 
 [watch]
 ignore = ["./src-tauri"]
